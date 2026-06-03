@@ -38,6 +38,13 @@ const BUILDER_ROLE_ID = "1510839345278353519";
 const BUILD_PING = `<@&${OWNER_ROLE_ID}> <@&${MOD_ROLE_ID}> <@&${BUILDER_ROLE_ID}>`;
 const SPAWNER_PING = `<@&${OWNER_ROLE_ID}> <@&${MOD_ROLE_ID}>`;
 
+const TICKET_TYPES = {
+  ticket_staff: { name: "staff-app", title: "Apply For Staff", color: 0x5865f2, ping: OWNER_ROLE_ID, emoji: "👔" },
+  ticket_builder: { name: "builder-app", title: "Apply for Builder", color: 0x57f287, ping: BUILDER_ROLE_ID, emoji: "🔨" },
+  ticket_giveaway: { name: "giveaway-claim", title: "Claim a Giveaway win", color: 0xfee75c, ping: MOD_ROLE_ID, emoji: "🎁" },
+  ticket_general: { name: "general", title: "General Questions", color: 0xed4245, ping: MOD_ROLE_ID, emoji: "❓" }
+};
+
 client.once(Events.ClientReady, () => {
   console.log(`✅ Claude's Bot is online as ${client.user.tag}`);
 });
@@ -84,7 +91,7 @@ client.on(Events.MessageCreate, async (message) => {
         "",
         "**Farm Order** — Order a prebuilt farm from our catalog",
         "**Digout** — Request a custom dig-out by dimensions",
-        "> Priced at **800 coins per block** · Formula: X  Y  Z  800",
+        "> Priced at **800 dollars per block** · Formula: X  Y  Z  800",
         "",
         "━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
@@ -168,6 +175,33 @@ client.on(Events.MessageCreate, async (message) => {
     await message.delete().catch(() => {});
   }
 
+  // !ticketpanel
+  if (message.content === "!ticketpanel" && (isAdmin || isStaff)) {
+    const embed = new EmbedBuilder()
+      .setTitle("🎫 Create a ticket")
+      .setDescription([
+        "Please click on the button below to create a support ticket.",
+        "",
+        "━━━━━━━━━━━━━━━━━━━━━━━━",
+        "",
+        "**Ticketty | Ticketty.top**",
+      ].join("\n"))
+      .setColor(0x2b2d31)
+      .setFooter({ text: "Ticketty | Ticket System" })
+      .setTimestamp();
+
+    const staffBtn = new ButtonBuilder().setCustomId("ticket_staff").setLabel("Apply For Staff").setStyle(ButtonStyle.Secondary);
+    const builderBtn = new ButtonBuilder().setCustomId("ticket_builder").setLabel("Apply for Builder").setStyle(ButtonStyle.Success);
+    const giveawayBtn = new ButtonBuilder().setCustomId("ticket_giveaway").setLabel("Claim a Giveaway win").setStyle(ButtonStyle.Primary);
+    const generalBtn = new ButtonBuilder().setCustomId("ticket_general").setLabel("General Questions").setStyle(ButtonStyle.Danger);
+
+    const row1 = new ActionRowBuilder().addComponents(staffBtn, builderBtn);
+    const row2 = new ActionRowBuilder().addComponents(giveawayBtn, generalBtn);
+
+    await message.channel.send({ embeds: [embed], components: [row1, row2] });
+    await message.delete().catch(() => {});
+  }
+
   // !addstaff @user
   if (message.content.startsWith("!addstaff") && isAdmin) {
     const target = message.mentions.members.first();
@@ -191,6 +225,7 @@ client.on(Events.MessageCreate, async (message) => {
       .setDescription([
         "**!panel** — Post the build services panel",
         "**!spawnerpanel** — Post the spawner shop panel",
+        "**!ticketpanel** — Post the support ticket panel",
         "**!addstaff @user** — Give staff role to a user *(admin only)*",
         "**!removestaff @user** — Remove staff role from a user *(admin only)*",
         "**!help** — Show this message",
@@ -238,24 +273,105 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return await interaction.showModal(modal);
     }
 
+    // Ticket type buttons
+    if (interaction.customId === "ticket_staff" || 
+        interaction.customId === "ticket_builder" || 
+        interaction.customId === "ticket_giveaway" || 
+        interaction.customId === "ticket_general") {
+      
+      const type = TICKET_TYPES[interaction.customId];
+      const guild = interaction.guild;
+      
+      const existing = guild.channels.cache.find(c => c.name === `${type.name}-${interaction.user.username.toLowerCase()}`);
+      if (existing) {
+        return interaction.reply({ content: `❌ You already have an open ticket: ${existing}`, ephemeral: true });
+      }
+      
+      const overwrites = [
+        { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles] },
+        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory] },
+      ];
+      
+      if (OWNER_ROLE_ID) overwrites.push({ id: OWNER_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
+      if (MOD_ROLE_ID) overwrites.push({ id: MOD_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
+      if (BUILDER_ROLE_ID) overwrites.push({ id: BUILDER_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
+      
+      const ticketChannel = await guild.channels.create({
+        name: `${type.name}-${interaction.user.username.toLowerCase()}`,
+        type: ChannelType.GuildText,
+        permissionOverwrites: overwrites,
+        ...(TICKET_CATEGORY_ID ? { parent: TICKET_CATEGORY_ID } : {}),
+      });
+      
+      const ticketEmbed = new EmbedBuilder()
+        .setTitle(`${type.emoji} ${type.title}`)
+        .setDescription([
+          `**Ticket opened by:** ${interaction.user}`,
+          `**Type:** ${type.title}`,
+          "",
+          "Please describe your request in detail.",
+          "A staff member will assist you shortly.",
+        ].join("\n"))
+        .setColor(type.color)
+        .setTimestamp()
+        .setFooter({ text: "Ticketty | Ticket System" });
+      
+      const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger);
+      
+      await ticketChannel.send({ 
+        content: `${interaction.user} ${type.ping ? `<@&${type.ping}>` : ""}`,
+        embeds: [ticketEmbed], 
+        components: [new ActionRowBuilder().addComponents(closeBtn)] 
+      });
+      
+      await interaction.reply({ content: `✅ Ticket created: ${ticketChannel}`, ephemeral: true });
+    }
+
     // ── Close ticket ──────────────────────────────────────────────────────────
     if (interaction.customId === "close_ticket") {
       await interaction.reply({ content: "🔒 Saving transcript and closing in 5 seconds..." });
 
       const messages = await interaction.channel.messages.fetch({ limit: 100 });
       const sorted = [...messages.values()].reverse();
-      const transcript = sorted
-        .map((m) => `[${new Date(m.createdTimestamp).toLocaleString()}] ${m.author.tag}: ${m.content || "[embed/attachment]"}`)
-        .join("\n");
-
-      const attachment = new AttachmentBuilder(Buffer.from(transcript, "utf-8"), { name: `transcript-${interaction.channel.name}.txt` });
+      
+      const date = new Date();
+      const dateStr = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}_${date.getHours().toString().padStart(2,'0')}-${date.getMinutes().toString().padStart(2,'0')}-${date.getSeconds().toString().padStart(2,'0')}`;
+      
+      let transcriptLines = [];
+      transcriptLines.push(`================================================================================`);
+      transcriptLines.push(`                         TICKET TRANSCRIPT`);
+      transcriptLines.push(`================================================================================`);
+      transcriptLines.push(`Channel:     ${interaction.channel.name}`);
+      transcriptLines.push(`Server:      ${interaction.guild.name}`);
+      transcriptLines.push(`Closed by:   ${interaction.user.tag} (${interaction.user.id})`);
+      transcriptLines.push(`Date:        ${date.toLocaleString()}`);
+      transcriptLines.push(`Messages:    ${sorted.length}`);
+      transcriptLines.push(`================================================================================`);
+      transcriptLines.push(``);
+      
+      for (const msg of sorted) {
+        const timestamp = new Date(msg.createdTimestamp).toLocaleString();
+        const author = msg.author.tag;
+        const content = msg.content || "[embed or attachment]";
+        transcriptLines.push(`[${timestamp}] ${author}:`);
+        transcriptLines.push(`  ${content}`);
+        transcriptLines.push(``);
+      }
+      
+      transcriptLines.push(`================================================================================`);
+      transcriptLines.push(`                      END OF TRANSCRIPT`);
+      transcriptLines.push(`================================================================================`);
+      
+      const transcript = transcriptLines.join('\n');
+      const attachment = new AttachmentBuilder(Buffer.from(transcript, "utf-8"), { name: `transcript-${interaction.channel.name}-${dateStr}.txt` });
 
       if (LOG_CHANNEL_ID) {
         const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
         if (logChannel) {
           const logEmbed = new EmbedBuilder()
-            .setTitle("Ticket Closed")
-            .setDescription(`**Channel:** ${interaction.channel.name}\n**Closed by:** ${interaction.user}`)
+            .setTitle("📋 Ticket Closed")
+            .setDescription(`**Channel:** ${interaction.channel.name}\n**Closed by:** ${interaction.user}\n**Messages:** ${sorted.length}`)
             .setColor(0xed4245)
             .setTimestamp();
           await logChannel.send({ embeds: [logEmbed], files: [attachment] });
@@ -263,11 +379,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
 
       try {
-        const userAttachment = new AttachmentBuilder(Buffer.from(transcript, "utf-8"), { name: `transcript-${interaction.channel.name}.txt` });
-        await interaction.user.send({ content: `Here is your ticket transcript for **${interaction.channel.name}**:`, files: [userAttachment] });
+        const userAttachment = new AttachmentBuilder(Buffer.from(transcript, "utf-8"), { name: `transcript-${interaction.channel.name}-${dateStr}.txt` });
+        await interaction.user.send({ content: `📄 **Transcript for ${interaction.channel.name}**\nClosed: ${date.toLocaleString()}`, files: [userAttachment] });
       } catch {}
 
-      await interaction.channel.permissionOverwrites.edit(client.user.id, { ManageChannels: true }).catch(() => {});
       setTimeout(() => interaction.channel.delete("Ticket closed").catch(console.error), 5000);
     }
   }
