@@ -13,6 +13,8 @@ const {
   Events,
   AttachmentBuilder,
 } = require("discord.js");
+const fs = require('fs');
+const path = require('path');
 
 const client = new Client({
   intents: [
@@ -23,6 +25,16 @@ const client = new Client({
   ],
 });
 
+// ─── LOAD DASHBOARD CONFIG ──────────────────────────────────────────────────
+const configPath = path.join(__dirname, 'bot_config.json');
+let dashboardConfig = {};
+if (fs.existsSync(configPath)) {
+  dashboardConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  console.log('✅ Loaded dashboard config');
+} else {
+  console.log('⚠️ No bot_config.json found, using defaults');
+}
+
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const TOKEN = process.env.DISCORD_TOKEN;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || null;
@@ -32,7 +44,6 @@ const AUTO_ROLE_ID = "1510275196576207051";
 const LOG_CHANNEL_ID = "1510701776310108360";
 const OWNER_ROLE_ID = "1510275124069404924";
 const MOD_ROLE_ID = "1510275193493389413";
-// BUILDER_ROLE_ID removed
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BUILD_PING = `<@&${OWNER_ROLE_ID}>`;
@@ -49,7 +60,7 @@ client.once(Events.ClientReady, () => {
   console.log(`✅ Claude's Bot is online as ${client.user.tag}`);
 });
 
-// ─── WELCOME + AUTO ROLE ─────────────────────────────────────────────────────
+// ─── WELCOME + AUTO ROLE (with dashboard config) ─────────────────────────────
 client.on(Events.GuildMemberAdd, async (member) => {
   if (AUTO_ROLE_ID) {
     const role = member.guild.roles.cache.get(AUTO_ROLE_ID);
@@ -60,15 +71,20 @@ client.on(Events.GuildMemberAdd, async (member) => {
     const channel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
     if (!channel) return;
 
+    const welcomeConfig = dashboardConfig.welcome || {};
+    const title = welcomeConfig.title || "👋 Welcome!";
+    let description = welcomeConfig.description || "Welcome {member} to {server}!\nYou are member #{count}.";
+    description = description
+      .replace(/{server}/g, member.guild.name)
+      .replace(/{member}/g, member.toString())
+      .replace(/{count}/g, member.guild.memberCount);
+    const color = parseInt(welcomeConfig.color?.replace('#', ''), 16) || 0x5865f2;
+
     const embed = new EmbedBuilder()
-      .setTitle("👋 Welcome!")
-      .setDescription([
-        `Welcome to **${member.guild.name}**, ${member}! 🎉`,
-        `You are member **#${member.guild.memberCount}**.`,
-        `Please read the rules and enjoy your stay!`,
-      ].join("\n"))
+      .setTitle(title)
+      .setDescription(description)
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-      .setColor(0x5865f2)
+      .setColor(color)
       .setTimestamp()
       .setFooter({ text: "Claude's Bot" });
 
@@ -82,124 +98,78 @@ client.on(Events.MessageCreate, async (message) => {
   const isAdmin = message.member.permissions.has(PermissionFlagsBits.Administrator);
   const isStaff = STAFF_ROLE_ID && message.member.roles.cache.has(STAFF_ROLE_ID);
 
-  // !panel
+  // !panel (using dashboard config)
   if (message.content === "!panel" && (isAdmin || isStaff)) {
+    const panelConfig = dashboardConfig.panel || {};
+    const description = panelConfig.description || "Order a farm build or digout service.";
+    const color = parseInt(panelConfig.color?.replace('#', ''), 16) || 0x2b2d31;
+
     const embed = new EmbedBuilder()
-      .setTitle("Build Services")
-      .setDescription([
-        "Order a farm build or digout service. Select what you need below.",
-        "",
-        "**Farm Order** — Order a prebuilt farm from our catalog",
-        "**Digout** — Request a custom dig-out by dimensions",
-        "> Priced at **800 dollars per block** · Formula: X x Y x Z x 800",
-        "",
-        "━━━━━━━━━━━━━━━━━━━━━━━━",
-        "",
-        "**Jester Farms**",
-        "• Advanced Kelp — 450M",
-        "• Beginner Kelp — 175M",
-        "• Bone Block Crafter Mini — 130M",
-        "• Bone Block Crafter V2 — 720M",
-        "• Cobble Farm — 450M",
-        "",
-        "**Fire Azure Farms**",
-        "• Fire Azure V2.5 — 350M",
-        "• Fire Azure V3 — 450M",
-        "• Fire Azure V3.1 — 220M",
-        "• Fire Azure V3.5 — 680M",
-        "• Fire Azure V4 — 900M",
-        "",
-        "**Ikea Farms**",
-        "• Ikea V1 — 175M",
-        "• Ikea V5 — 800M",
-        "• Intermediate Kelp — 270M",
-        "",
-        "**Mauschu Farms**",
-        "• Mauschu Beginner — 40M",
-        "• Mauschu Intermediate — 150M",
-        "• Mauschu Advanced — 450M",
-        "• Mauschu Newbie 1 Module — 18M",
-        "• Mauschu V6 — 580M",
-        "• Mauschu V7 — 630M",
-        "• Mauschu V8 — 800M",
-        "• Mauschu V9 — 1.1B",
-        "• Mauschu V10 — 900M",
-        "",
-        "**Ravixx Farms**",
-        "• Ravixx 1680 Smokers Industrial Kelp — 680M",
-        "• Ravixx McDonalds 240 Smokers — 130M",
-        "",
-        "━━━━━━━━━━━━━━━━━━━━━━━━",
-        "**Rules**",
-        "• Open only **ONE** build ticket at a time",
-        "• Be respectful, detailed, and patient",
-      ].join("\n"))
-      .setColor(0x2b2d31)
+      .setTitle(panelConfig.title || "Build Services")
+      .setDescription(description)
+      .setColor(color)
       .setFooter({ text: "Claude's Bot • Build Services" })
       .setTimestamp();
 
-    const farmBtn = new ButtonBuilder().setCustomId("order_farm").setLabel("Farm Order").setStyle(ButtonStyle.Primary);
-    const digoutBtn = new ButtonBuilder().setCustomId("order_digout").setLabel("Digout").setStyle(ButtonStyle.Secondary);
+    const farmBtn = new ButtonBuilder().setCustomId("order_farm").setLabel("🌾 Farm Order").setStyle(ButtonStyle.Primary);
+    const digoutBtn = new ButtonBuilder().setCustomId("order_digout").setLabel("⛏️ Digout").setStyle(ButtonStyle.Secondary);
     await message.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(farmBtn, digoutBtn)] });
     await message.delete().catch(() => {});
   }
 
-  // !spawnerpanel
+  // !spawnerpanel (using dashboard config)
   if (message.content === "!spawnerpanel" && (isAdmin || isStaff)) {
+    const spawnerConfig = dashboardConfig.spawnerpanel || {};
+    const description = spawnerConfig.description || "🦴 Skeleton Spawners — 4.7M each\n🦴 Buying — 4.4M each";
+    const color = parseInt(spawnerConfig.color?.replace('#', ''), 16) || 0x2b2d31;
+
     const embed = new EmbedBuilder()
-      .setTitle("Skeleton Spawner Shop")
-      .setDescription([
-        "**Selling:** *(We Sell To You)*",
-        "🦴 Skeleton Spawners — **4.7M each**",
-        "",
-        "**Buying:** *(You Sell To Us)*",
-        "🦴 Skeleton Spawners — **4.4M each**",
-        "",
-        "━━━━━━━━━━━━━━━━━━━━━━━━",
-        "",
-        "**Rules**",
-        "• 32 spawners minimum to Sell or Buy",
-        "• We do **NOT** go first",
-        "• We do **NOT** negotiate on prices",
-        "⚠️ Failure to complete trades may result in a **ban**",
-        "",
-        "Open a ticket below to sell or buy spawners.",
-      ].join("\n"))
-      .setColor(0x2b2d31)
+      .setTitle(spawnerConfig.title || "Skeleton Spawner Shop")
+      .setDescription(description)
+      .setColor(color)
       .setFooter({ text: "Claude's Bot • Spawner Shop" })
       .setTimestamp();
 
-    const sellBtn = new ButtonBuilder().setCustomId("sell_spawners").setLabel("Sell Spawners").setStyle(ButtonStyle.Success);
-    const buyBtn = new ButtonBuilder().setCustomId("buy_spawners").setLabel("Buy Spawners").setStyle(ButtonStyle.Primary);
+    const sellBtn = new ButtonBuilder().setCustomId("sell_spawners").setLabel("💰 Sell Spawners").setStyle(ButtonStyle.Success);
+    const buyBtn = new ButtonBuilder().setCustomId("buy_spawners").setLabel("🛒 Buy Spawners").setStyle(ButtonStyle.Primary);
     await message.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(sellBtn, buyBtn)] });
     await message.delete().catch(() => {});
   }
 
-  // !ticketpanel
+  // !ticketpanel (using dashboard config)
   if (message.content === "!ticketpanel" && (isAdmin || isStaff)) {
+    const ticketConfig = dashboardConfig.ticketpanel || {};
+    const buttons = ticketConfig.buttons || {};
+    const description = ticketConfig.description || "Click a button to create a ticket";
+    const color = parseInt(ticketConfig.color?.replace('#', ''), 16) || 0x2b2d31;
+
     const embed = new EmbedBuilder()
-      .setTitle("🎫 Create a ticket")
-      .setDescription([
-        "Please click on the button below to create a support ticket.",
-        "",
-        "━━━━━━━━━━━━━━━━━━━━━━━━",
-        "",
-        "**Claude's Helper.**",
-      ].join("\n"))
-      .setColor(0x2b2d31)
+      .setTitle(ticketConfig.title || "🎫 Create a ticket")
+      .setDescription(description)
+      .setColor(color)
       .setFooter({ text: "Ticketty | Ticket System" })
       .setTimestamp();
 
-    const staffBtn = new ButtonBuilder().setCustomId("ticket_staff").setLabel("Apply For Staff").setStyle(ButtonStyle.Secondary);
-    const builderBtn = new ButtonBuilder().setCustomId("ticket_builder").setLabel("Apply for Builder").setStyle(ButtonStyle.Success);
-    const giveawayBtn = new ButtonBuilder().setCustomId("ticket_giveaway").setLabel("Claim a Giveaway win").setStyle(ButtonStyle.Primary);
-    const generalBtn = new ButtonBuilder().setCustomId("ticket_general").setLabel("General Questions").setStyle(ButtonStyle.Danger);
+    const staffBtn = new ButtonBuilder().setCustomId("ticket_staff").setLabel(buttons.staff || "👔 Apply For Staff").setStyle(ButtonStyle.Secondary);
+    const builderBtn = new ButtonBuilder().setCustomId("ticket_builder").setLabel(buttons.builder || "🔨 Apply for Builder").setStyle(ButtonStyle.Success);
+    const giveawayBtn = new ButtonBuilder().setCustomId("ticket_giveaway").setLabel(buttons.giveaway || "🎁 Claim a Giveaway win").setStyle(ButtonStyle.Primary);
+    const generalBtn = new ButtonBuilder().setCustomId("ticket_general").setLabel(buttons.general || "❓ General Questions").setStyle(ButtonStyle.Danger);
 
     const row1 = new ActionRowBuilder().addComponents(staffBtn, builderBtn);
     const row2 = new ActionRowBuilder().addComponents(giveawayBtn, generalBtn);
 
     await message.channel.send({ embeds: [embed], components: [row1, row2] });
     await message.delete().catch(() => {});
+  }
+
+  // !reload command to refresh dashboard config without restart
+  if (message.content === "!reload" && isAdmin) {
+    if (fs.existsSync(configPath)) {
+      dashboardConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      await message.reply("✅ Dashboard config reloaded!");
+    } else {
+      await message.reply("❌ No bot_config.json found");
+    }
   }
 
   // !addstaff @user
@@ -228,6 +198,7 @@ client.on(Events.MessageCreate, async (message) => {
         "**!ticketpanel** — Post the support ticket panel",
         "**!addstaff @user** — Give staff role to a user *(admin only)*",
         "**!removestaff @user** — Remove staff role from a user *(admin only)*",
+        "**!reload** — Reload dashboard config *(admin only)*",
         "**!help** — Show this message",
       ].join("\n"))
       .setColor(0x5865f2);
@@ -238,11 +209,10 @@ client.on(Events.MessageCreate, async (message) => {
 // ─── INTERACTIONS ─────────────────────────────────────────────────────────────
 client.on(Events.InteractionCreate, async (interaction) => {
 
-  // ── Buttons ────────────────────────────────────────────────────────────────
   if (interaction.isButton()) {
 
     if (interaction.customId === "order_farm") {
-      const modal = new ModalBuilder().setCustomId("modal_farm").setTitle("Farm Order");
+      const modal = new ModalBuilder().setCustomId("modal_farm").setTitle("🌾 Farm Order");
       modal.addComponents(
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ign").setLabel("Your IGN").setStyle(TextInputStyle.Short).setRequired(true)),
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("farm_name").setLabel("Which farm do you want?").setStyle(TextInputStyle.Short).setPlaceholder("e.g. Mauschu Advanced").setRequired(true)),
@@ -252,7 +222,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     if (interaction.customId === "order_digout") {
-      const modal = new ModalBuilder().setCustomId("modal_digout").setTitle("Digout Order");
+      const modal = new ModalBuilder().setCustomId("modal_digout").setTitle("⛏️ Digout Order");
       modal.addComponents(
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ign").setLabel("Your IGN").setStyle(TextInputStyle.Short).setRequired(true)),
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("dimensions").setLabel("Dimensions (X x Y x Z)").setStyle(TextInputStyle.Short).setPlaceholder("e.g. 50 x 10 x 50").setRequired(true)),
@@ -265,7 +235,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const isBuy = interaction.customId === "buy_spawners";
       const modal = new ModalBuilder()
         .setCustomId(isBuy ? "modal_buy_spawners" : "modal_sell_spawners")
-        .setTitle(isBuy ? "Buy Spawners" : "Sell Spawners");
+        .setTitle(isBuy ? "🛒 Buy Spawners" : "💰 Sell Spawners");
       modal.addComponents(
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ign").setLabel("Your IGN").setStyle(TextInputStyle.Short).setRequired(true)),
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("amount").setLabel("How many skeleton spawners?").setStyle(TextInputStyle.Short).setPlaceholder("e.g. 100").setRequired(true))
@@ -281,8 +251,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       
       const type = TICKET_TYPES[interaction.customId];
       const guild = interaction.guild;
+      const channelName = `${type.name}-${interaction.user.username.toLowerCase()}`;
       
-      const existing = guild.channels.cache.find(c => c.name === `${type.name}-${interaction.user.username.toLowerCase()}`);
+      const existing = guild.channels.cache.find(c => c.name === channelName);
       if (existing) {
         return interaction.reply({ content: `❌ You already have an open ticket: ${existing}`, ephemeral: true });
       }
@@ -296,7 +267,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       ];
       
       const ticketChannel = await guild.channels.create({
-        name: `${type.name}-${interaction.user.username.toLowerCase()}`,
+        name: channelName,
         type: ChannelType.GuildText,
         permissionOverwrites: overwrites,
         ...(TICKET_CATEGORY_ID ? { parent: TICKET_CATEGORY_ID } : {}),
@@ -315,7 +286,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setTimestamp()
         .setFooter({ text: "Ticketty | Ticket System" });
       
-      const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger);
+      const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("🔒 Close Ticket").setStyle(ButtonStyle.Danger);
       
       await ticketChannel.send({ 
         content: `${interaction.user} <@&${OWNER_ROLE_ID}>`,
@@ -419,7 +390,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const total = (parseFloat(amount) * price).toLocaleString();
 
       const ticketEmbed = new EmbedBuilder()
-        .setTitle(isBuySpawner ? "Buy Spawners Order" : "Sell Spawners Order")
+        .setTitle(isBuySpawner ? "🛒 Buy Spawners Order" : "💰 Sell Spawners Order")
         .setDescription([
           `**User:** ${interaction.user}`,
           `**IGN:** \`${ign}\``,
@@ -433,7 +404,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setTimestamp()
         .setFooter({ text: "Claude's Bot • Spawner Shop" });
 
-      const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger);
+      const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("🔒 Close Ticket").setStyle(ButtonStyle.Danger);
       await ticketChannel.send({ content: `${interaction.user} <@&${OWNER_ROLE_ID}>`, embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeBtn)] });
       return await interaction.reply({ content: `✅ Your ticket has been opened: ${ticketChannel}`, ephemeral: true });
     }
@@ -478,13 +449,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     const ticketEmbed = new EmbedBuilder()
-      .setTitle(isFarm ? "Farm Order" : "Digout Order")
+      .setTitle(isFarm ? "🌾 Farm Order" : "⛏️ Digout Order")
       .setDescription(description)
       .setColor(isFarm ? 0x5865f2 : 0xed4245)
       .setTimestamp()
       .setFooter({ text: "Claude's Bot • Build Services" });
 
-    const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger);
+    const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("🔒 Close Ticket").setStyle(ButtonStyle.Danger);
     await ticketChannel.send({ content: `${interaction.user} <@&${OWNER_ROLE_ID}>`, embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeBtn)] });
     await interaction.reply({ content: `✅ Your ticket has been opened: ${ticketChannel}`, ephemeral: true });
 
@@ -492,7 +463,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
       if (logChannel) {
         const logEmbed = new EmbedBuilder()
-          .setTitle("Ticket Opened")
+          .setTitle("📋 Ticket Opened")
           .setDescription(`**User:** ${interaction.user}\n**Type:** ${isFarm ? "Farm Order" : "Digout"}\n**Channel:** ${ticketChannel}`)
           .setColor(0x57f287)
           .setTimestamp();
