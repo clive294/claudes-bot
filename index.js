@@ -13,8 +13,6 @@ const {
   Events,
   AttachmentBuilder,
 } = require("discord.js");
-const fs = require('fs');
-const path = require('path');
 
 const client = new Client({
   intents: [
@@ -24,16 +22,6 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
   ],
 });
-
-// ─── LOAD DASHBOARD CONFIG ──────────────────────────────────────────────────
-const configPath = path.join(__dirname, 'bot_config.json');
-let dashboardConfig = {};
-if (fs.existsSync(configPath)) {
-  dashboardConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  console.log('✅ Loaded dashboard config');
-} else {
-  console.log('⚠️ No bot_config.json found, using defaults');
-}
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -60,7 +48,7 @@ client.once(Events.ClientReady, () => {
   console.log(`✅ Claude's Bot is online as ${client.user.tag}`);
 });
 
-// ─── WELCOME + AUTO ROLE (with dashboard config) ─────────────────────────────
+// ─── WELCOME + AUTO ROLE ─────────────────────────────────────────────────────
 client.on(Events.GuildMemberAdd, async (member) => {
   if (AUTO_ROLE_ID) {
     const role = member.guild.roles.cache.get(AUTO_ROLE_ID);
@@ -71,20 +59,15 @@ client.on(Events.GuildMemberAdd, async (member) => {
     const channel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
     if (!channel) return;
 
-    const welcomeConfig = dashboardConfig.welcome || {};
-    const title = welcomeConfig.title || "👋 Welcome!";
-    let description = welcomeConfig.description || "Welcome {member} to {server}!\nYou are member #{count}.";
-    description = description
-      .replace(/{server}/g, member.guild.name)
-      .replace(/{member}/g, member.toString())
-      .replace(/{count}/g, member.guild.memberCount);
-    const color = parseInt(welcomeConfig.color?.replace('#', ''), 16) || 0x5865f2;
-
     const embed = new EmbedBuilder()
-      .setTitle(title)
-      .setDescription(description)
+      .setTitle("👋 Welcome!")
+      .setDescription([
+        `Welcome to **${member.guild.name}**, ${member}! 🎉`,
+        `You are member **#${member.guild.memberCount}**.`,
+        `Please read the rules and enjoy your stay!`,
+      ].join("\n"))
       .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-      .setColor(color)
+      .setColor(0x5865f2)
       .setTimestamp()
       .setFooter({ text: "Claude's Bot" });
 
@@ -98,16 +81,58 @@ client.on(Events.MessageCreate, async (message) => {
   const isAdmin = message.member.permissions.has(PermissionFlagsBits.Administrator);
   const isStaff = STAFF_ROLE_ID && message.member.roles.cache.has(STAFF_ROLE_ID);
 
-  // !panel (using dashboard config)
+  // !panel
   if (message.content === "!panel" && (isAdmin || isStaff)) {
-    const panelConfig = dashboardConfig.panel || {};
-    const description = panelConfig.description || "Order a farm build or digout service.";
-    const color = parseInt(panelConfig.color?.replace('#', ''), 16) || 0x2b2d31;
-
     const embed = new EmbedBuilder()
-      .setTitle(panelConfig.title || "Build Services")
-      .setDescription(description)
-      .setColor(color)
+      .setTitle("📦 Build Services")
+      .setDescription(`🏗️ Order a farm build or digout service. Select what you need below.
+
+🌾 **Farm Order** — Order a prebuilt farm from our catalog
+⛏️ **Digout** — Request a custom dig-out by dimensions
+💰 Priced at **800 dollars per block** · Formula: X x Y x Z x 800
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔥 **Jester Farms**
+• 🌿 Advanced Kelp — 450M
+• 🌱 Beginner Kelp — 175M
+• 🦴 Bone Block Crafter Mini — 130M
+• 🦴 Bone Block Crafter V2 — 720M
+• 🪨 Cobble Farm — 450M
+
+🔥 **Fire Azure Farms**
+• 🔥 Fire Azure V2.5 — 350M
+• 🔥 Fire Azure V3 — 450M
+• 🔥 Fire Azure V3.1 — 220M
+• 🔥 Fire Azure V3.5 — 680M
+• 🔥 Fire Azure V4 — 900M
+
+🪑 **Ikea Farms**
+• 🪑 Ikea V1 — 175M
+• 🪑 Ikea V5 — 800M
+• 🌿 Intermediate Kelp — 270M
+
+🐭 **Mauschu Farms**
+• 🐭 Mauschu Beginner — 40M
+• 🐭 Mauschu Intermediate — 150M
+• 🐭 Mauschu Advanced — 450M
+• 🐭 Mauschu Newbie 1 Module — 18M
+• 🐭 Mauschu V6 — 580M
+• 🐭 Mauschu V7 — 630M
+• 🐭 Mauschu V8 — 800M
+• 🐭 Mauschu V9 — 1.1B
+• 🐭 Mauschu V10 — 900M
+
+🦊 **Ravixx Farms**
+• 🦊 Ravixx 1680 Smokers Industrial Kelp — 680M
+• 🦊 Ravixx McDonalds 240 Smokers — 130M
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+📜 **Rules**
+• 🔒 Open only **ONE** build ticket at a time
+• 🙏 Be respectful, detailed, and patient`)
+      .setColor(0x2b2d31)
       .setFooter({ text: "Claude's Bot • Build Services" })
       .setTimestamp();
 
@@ -117,16 +142,28 @@ client.on(Events.MessageCreate, async (message) => {
     await message.delete().catch(() => {});
   }
 
-  // !spawnerpanel (using dashboard config)
+  // !spawnerpanel
   if (message.content === "!spawnerpanel" && (isAdmin || isStaff)) {
-    const spawnerConfig = dashboardConfig.spawnerpanel || {};
-    const description = spawnerConfig.description || "🦴 Skeleton Spawners — 4.7M each\n🦴 Buying — 4.4M each";
-    const color = parseInt(spawnerConfig.color?.replace('#', ''), 16) || 0x2b2d31;
-
     const embed = new EmbedBuilder()
-      .setTitle(spawnerConfig.title || "Skeleton Spawner Shop")
-      .setDescription(description)
-      .setColor(color)
+      .setTitle("🦴 Skeleton Spawner Shop")
+      .setDescription(`💰 **Selling:** *(We Sell To You)*
+🦴 Skeleton Spawners — **4.7M each**
+
+💵 **Buying:** *(You Sell To Us)*
+🦴 Skeleton Spawners — **4.4M each**
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+📜 **Rules**
+• 🔢 32 spawners minimum to Sell or Buy
+• 🚫 We do **NOT** go first
+• 🚫 We do **NOT** negotiate on prices
+⚠️ Failure to complete trades may result in a **ban**
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎫 Open a ticket below to sell or buy spawners.`)
+      .setColor(0x2b2d31)
       .setFooter({ text: "Claude's Bot • Spawner Shop" })
       .setTimestamp();
 
@@ -136,40 +173,31 @@ client.on(Events.MessageCreate, async (message) => {
     await message.delete().catch(() => {});
   }
 
-  // !ticketpanel (using dashboard config)
+  // !ticketpanel
   if (message.content === "!ticketpanel" && (isAdmin || isStaff)) {
-    const ticketConfig = dashboardConfig.ticketpanel || {};
-    const buttons = ticketConfig.buttons || {};
-    const description = ticketConfig.description || "Click a button to create a ticket";
-    const color = parseInt(ticketConfig.color?.replace('#', ''), 16) || 0x2b2d31;
-
     const embed = new EmbedBuilder()
-      .setTitle(ticketConfig.title || "🎫 Create a ticket")
-      .setDescription(description)
-      .setColor(color)
+      .setTitle("🎫 Create a ticket")
+      .setDescription([
+        "📋 Please click on the button below to create a support ticket.",
+        "",
+        "━━━━━━━━━━━━━━━━━━━━━━━━",
+        "",
+        "🤖 **Claude's Helper**",
+      ].join("\n"))
+      .setColor(0x2b2d31)
       .setFooter({ text: "Ticketty | Ticket System" })
       .setTimestamp();
 
-    const staffBtn = new ButtonBuilder().setCustomId("ticket_staff").setLabel(buttons.staff || "👔 Apply For Staff").setStyle(ButtonStyle.Secondary);
-    const builderBtn = new ButtonBuilder().setCustomId("ticket_builder").setLabel(buttons.builder || "🔨 Apply for Builder").setStyle(ButtonStyle.Success);
-    const giveawayBtn = new ButtonBuilder().setCustomId("ticket_giveaway").setLabel(buttons.giveaway || "🎁 Claim a Giveaway win").setStyle(ButtonStyle.Primary);
-    const generalBtn = new ButtonBuilder().setCustomId("ticket_general").setLabel(buttons.general || "❓ General Questions").setStyle(ButtonStyle.Danger);
+    const staffBtn = new ButtonBuilder().setCustomId("ticket_staff").setLabel("👔 Apply For Staff").setStyle(ButtonStyle.Secondary);
+    const builderBtn = new ButtonBuilder().setCustomId("ticket_builder").setLabel("🔨 Apply for Builder").setStyle(ButtonStyle.Success);
+    const giveawayBtn = new ButtonBuilder().setCustomId("ticket_giveaway").setLabel("🎁 Claim a Giveaway win").setStyle(ButtonStyle.Primary);
+    const generalBtn = new ButtonBuilder().setCustomId("ticket_general").setLabel("❓ General Questions").setStyle(ButtonStyle.Danger);
 
     const row1 = new ActionRowBuilder().addComponents(staffBtn, builderBtn);
     const row2 = new ActionRowBuilder().addComponents(giveawayBtn, generalBtn);
 
     await message.channel.send({ embeds: [embed], components: [row1, row2] });
     await message.delete().catch(() => {});
-  }
-
-  // !reload command to refresh dashboard config without restart
-  if (message.content === "!reload" && isAdmin) {
-    if (fs.existsSync(configPath)) {
-      dashboardConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      await message.reply("✅ Dashboard config reloaded!");
-    } else {
-      await message.reply("❌ No bot_config.json found");
-    }
   }
 
   // !addstaff @user
@@ -198,7 +226,6 @@ client.on(Events.MessageCreate, async (message) => {
         "**!ticketpanel** — Post the support ticket panel",
         "**!addstaff @user** — Give staff role to a user *(admin only)*",
         "**!removestaff @user** — Remove staff role from a user *(admin only)*",
-        "**!reload** — Reload dashboard config *(admin only)*",
         "**!help** — Show this message",
       ].join("\n"))
       .setColor(0x5865f2);
