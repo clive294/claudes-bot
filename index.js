@@ -84,7 +84,7 @@ client.on(Events.MessageCreate, async (message) => {
           "",
           "**Farm Order** — Order a prebuilt farm from our catalog",
           "**Digout** — Request a custom dig-out by dimensions",
-          "> Priced at **8000 dollar per block** · Formula: X  Y  Z  800",
+          "> Priced at **800 dollar per block** · Formula: X  Y  Z  800",
           "",
           "━━━━━━━━━━━━━━━━━━━━━━━━",
           "",
