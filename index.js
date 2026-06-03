@@ -22,104 +22,190 @@ const client = new Client({
 });
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
-const TOKEN = process.env.DISCORD_TOKEN; // set this in your environment
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID; // role to ping in tickets
-const TICKET_CATEGORY_ID = process.env.TICKET_CATEGORY_ID; // optional category for tickets
+const TOKEN = process.env.DISCORD_TOKEN;
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
+const TICKET_CATEGORY_ID = process.env.TICKET_CATEGORY_ID;
 // ─────────────────────────────────────────────────────────────────────────────
 
 client.once(Events.ClientReady, () => {
   console.log(`✅ Claude's Bot is online as ${client.user.tag}`);
 });
 
-// Post the shop panel with !panel command
+// !panel command
 client.on(Events.MessageCreate, async (message) => {
-  if (message.content === "!panel" && message.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
+  if (!message.member) return;
+  if (
+    message.content === "!panel" &&
+    message.member.permissions.has(PermissionFlagsBits.ManageChannels)
+  ) {
     const embed = new EmbedBuilder()
-      .setTitle("🤖 Claude's Bot — Shop")
+      .setTitle("Build Services")
       .setDescription(
         [
-          "**Buying:** *(We Sell To You)*",
-          "🦴 Skeleton Spawners — **10 each**",
+          "Order a farm build or digout service. Select what you need below.",
           "",
-          "**Selling:** *(You Sell To Us)*",
-          "🦴 Skeleton Spawners — **5.3 each**",
-          "📦 Stock: **1737 spawners available**",
+          "**Farm Order** — Order a prebuilt farm from our catalog",
+          "**Digout** — Request a custom dig-out by dimensions",
+          "> Priced at **1,000 coins per block** · Formula: X x Y x Z x 1,000",
           "",
           "━━━━━━━━━━━━━━━━━━━━━━━━",
           "",
-          "**📋 Rules**",
-          "• 32 spawners minimum to Sell or Buy",
-          "• We do **NOT** go first",
-          "• We do **NOT** negotiate on prices",
-          "⚠️ Failure to complete trades may result in a **ban**",
+          "**Jester Farms**",
+          "• Advanced Kelp — 450M",
+          "• Beginner Kelp — 175M",
+          "• Bone Block Crafter Mini — 130M",
+          "• Bone Block Crafter V2 — 720M",
+          "• Cobble Farm — 450M",
           "",
-          "Open a ticket below to sell or buy spawners.",
+          "**Fire Azure Farms**",
+          "• Fire Azure V2.5 — 350M",
+          "• Fire Azure V3 — 450M",
+          "• Fire Azure V3.1 — 220M",
+          "• Fire Azure V3.5 — 680M",
+          "• Fire Azure V4 — 900M",
+          "",
+          "**Ikea Farms**",
+          "• Ikea V1 — 175M",
+          "• Ikea V5 — 800M",
+          "• Intermediate Kelp — 270M",
+          "",
+          "**Mauschu Farms**",
+          "• Mauschu Beginner — 40M",
+          "• Mauschu Intermediate — 150M",
+          "• Mauschu Advanced — 450M",
+          "• Mauschu Newbie 1 Module — 18M",
+          "• Mauschu V6 — 580M",
+          "• Mauschu V7 — 630M",
+          "• Mauschu V8 — 800M",
+          "• Mauschu V9 — 1.1B",
+          "• Mauschu V10 — 900M",
+          "",
+          "**Ravixx Farms**",
+          "• Ravixx 1680 Smokers Industrial Kelp — 680M",
+          "• Ravixx McDonalds 240 Smokers — 130M",
+          "",
+          "━━━━━━━━━━━━━━━━━━━━━━━━",
+          "**Rules**",
+          "• Open only **ONE** build ticket at a time",
+          "• Be respectful, detailed, and patient",
         ].join("\n")
       )
-      .setColor(0x5865f2)
-      .setFooter({ text: "Claude's Bot" })
+      .setColor(0x2b2d31)
+      .setFooter({ text: "Claude's Bot • Build Services" })
       .setTimestamp();
 
-    const sellBtn = new ButtonBuilder()
-      .setCustomId("sell_spawners")
-      .setLabel("🦴 Sell Spawners")
-      .setStyle(ButtonStyle.Success);
-
-    const buyBtn = new ButtonBuilder()
-      .setCustomId("buy_spawners")
-      .setLabel("🦴 Buy Spawners")
+    const farmBtn = new ButtonBuilder()
+      .setCustomId("order_farm")
+      .setLabel("Farm Order")
       .setStyle(ButtonStyle.Primary);
 
-    const row = new ActionRowBuilder().addComponents(sellBtn, buyBtn);
+    const digoutBtn = new ButtonBuilder()
+      .setCustomId("order_digout")
+      .setLabel("Digout")
+      .setStyle(ButtonStyle.Secondary);
+
+    const row = new ActionRowBuilder().addComponents(farmBtn, digoutBtn);
 
     await message.channel.send({ embeds: [embed], components: [row] });
     await message.delete().catch(() => {});
   }
 });
 
-// Handle button clicks
 client.on(Events.InteractionCreate, async (interaction) => {
-  // ── Buttons → open modal ──────────────────────────────────────────────────
+  // ── Buttons → open modal ─────────────────────────────────────────────────
   if (interaction.isButton()) {
-    const isBuy = interaction.customId === "buy_spawners";
-    const isSell = interaction.customId === "sell_spawners";
-    if (!isBuy && !isSell) return;
+    if (interaction.customId === "order_farm") {
+      const modal = new ModalBuilder()
+        .setCustomId("modal_farm")
+        .setTitle("Farm Order");
 
-    const modal = new ModalBuilder()
-      .setCustomId(isBuy ? "modal_buy" : "modal_sell")
-      .setTitle(isBuy ? "Buy Spawners" : "Sell Spawners");
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId("ign")
+            .setLabel("Your IGN")
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId("farm_name")
+            .setLabel("Which farm do you want?")
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder("e.g. Mauschu Advanced")
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId("extra")
+            .setLabel("Any extra info? (optional)")
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+        )
+      );
 
-    const ignInput = new TextInputBuilder()
-      .setCustomId("ign")
-      .setLabel("IGN")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
+      return await interaction.showModal(modal);
+    }
 
-    const amountInput = new TextInputBuilder()
-      .setCustomId("amount")
-      .setLabel("How many skeleton spawners?")
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder("100")
-      .setRequired(true);
+    if (interaction.customId === "order_digout") {
+      const modal = new ModalBuilder()
+        .setCustomId("modal_digout")
+        .setTitle("Digout Order");
 
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(ignInput),
-      new ActionRowBuilder().addComponents(amountInput)
-    );
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId("ign")
+            .setLabel("Your IGN")
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId("dimensions")
+            .setLabel("Dimensions (X x Y x Z)")
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder("e.g. 50 x 10 x 50")
+            .setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId("extra")
+            .setLabel("Any extra info? (optional)")
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+        )
+      );
 
-    await interaction.showModal(modal);
+      return await interaction.showModal(modal);
+    }
+
+    // ── Close ticket ────────────────────────────────────────────────────────
+    if (interaction.customId === "close_ticket") {
+      const channel = interaction.channel;
+      await interaction.reply({ content: "🔒 Closing ticket in 5 seconds..." });
+
+      // Give bot manage channel perms to delete it
+      await channel.permissionOverwrites.edit(client.user.id, {
+        ManageChannels: true,
+      }).catch(() => {});
+
+      setTimeout(() => channel.delete("Ticket closed").catch(console.error), 5000);
+    }
   }
 
-  // ── Modal submit → create ticket channel ─────────────────────────────────
+  // ── Modal submit → create ticket ────────────────────────────────────────
   if (interaction.isModalSubmit()) {
-    const isBuy = interaction.customId === "modal_buy";
+    const isFarm = interaction.customId === "modal_farm";
+    const isDigout = interaction.customId === "modal_digout";
+    if (!isFarm && !isDigout) return;
+
     const ign = interaction.fields.getTextInputValue("ign");
-    const amount = interaction.fields.getTextInputValue("amount");
-    const type = isBuy ? "buy" : "sell";
+    const extra = interaction.fields.getTextInputValue("extra") || "None";
+    const type = isFarm ? "farm" : "digout";
 
     const guild = interaction.guild;
 
-    // Check for existing ticket
     const existing = guild.channels.cache.find(
       (c) => c.name === `${type}-${interaction.user.username.toLowerCase()}`
     );
@@ -130,18 +216,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
     }
 
-    // Build permission overwrites
     const overwrites = [
-      {
-        id: guild.id,
-        deny: [PermissionFlagsBits.ViewChannel],
-      },
+      { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
       {
         id: interaction.user.id,
         allow: [
           PermissionFlagsBits.ViewChannel,
           PermissionFlagsBits.SendMessages,
           PermissionFlagsBits.ReadMessageHistory,
+        ],
+      },
+      {
+        id: client.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ManageChannels,
         ],
       },
     ];
@@ -166,35 +256,44 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     const ticketChannel = await guild.channels.create(channelOptions);
 
-    // Send ticket embed
+    let description;
+    if (isFarm) {
+      const farmName = interaction.fields.getTextInputValue("farm_name");
+      description = [
+        `**User:** ${interaction.user}`,
+        `**IGN:** \`${ign}\``,
+        `**Farm:** \`${farmName}\``,
+        `**Extra Info:** ${extra}`,
+        "",
+        "A staff member will be with you shortly.",
+      ].join("\n");
+    } else {
+      const dimensions = interaction.fields.getTextInputValue("dimensions");
+      description = [
+        `**User:** ${interaction.user}`,
+        `**IGN:** \`${ign}\``,
+        `**Dimensions:** \`${dimensions}\``,
+        `**Extra Info:** ${extra}`,
+        "",
+        "A staff member will be with you shortly.",
+      ].join("\n");
+    }
+
     const ticketEmbed = new EmbedBuilder()
-      .setTitle(isBuy ? "🛒 Buy Order" : "💰 Sell Order")
-      .setDescription(
-        [
-          `**User:** ${interaction.user}`,
-          `**IGN:** \`${ign}\``,
-          `**Amount:** \`${amount} spawners\``,
-          `**Type:** ${isBuy ? "Buying from us" : "Selling to us"}`,
-          "",
-          isBuy
-            ? `💸 Estimated cost: **${(parseInt(amount) * 10).toLocaleString()} coins**`
-            : `💸 Estimated payout: **${(parseFloat(amount) * 5.3).toLocaleString()} coins**`,
-          "",
-          "A staff member will be with you shortly.",
-        ].join("\n")
-      )
-      .setColor(isBuy ? 0x5865f2 : 0x57f287)
+      .setTitle(isFarm ? "Farm Order" : "Digout Order")
+      .setDescription(description)
+      .setColor(isFarm ? 0x5865f2 : 0xed4245)
       .setTimestamp()
-      .setFooter({ text: "Claude's Bot • Ticket System" });
+      .setFooter({ text: "Claude's Bot • Build Services" });
 
     const closeBtn = new ButtonBuilder()
       .setCustomId("close_ticket")
-      .setLabel("🔒 Close Ticket")
+      .setLabel("Close Ticket")
       .setStyle(ButtonStyle.Danger);
 
     const row = new ActionRowBuilder().addComponents(closeBtn);
-
     const ping = STAFF_ROLE_ID ? `<@&${STAFF_ROLE_ID}>` : "";
+
     await ticketChannel.send({
       content: `${interaction.user} ${ping}`,
       embeds: [ticketEmbed],
@@ -205,12 +304,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       content: `✅ Your ticket has been opened: ${ticketChannel}`,
       ephemeral: true,
     });
-  }
-
-  // ── Close ticket button ───────────────────────────────────────────────────
-  if (interaction.isButton() && interaction.customId === "close_ticket") {
-    await interaction.reply({ content: "🔒 Closing ticket in 5 seconds..." });
-    setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
 });
 
