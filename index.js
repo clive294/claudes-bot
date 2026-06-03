@@ -1,4 +1,3 @@
-cat > /home/claude/claudes-bot/index.js << 'EOF'
 const {
   Client,
   GatewayIntentBits,
@@ -85,7 +84,7 @@ client.on(Events.MessageCreate, async (message) => {
         "",
         "**Farm Order** — Order a prebuilt farm from our catalog",
         "**Digout** — Request a custom dig-out by dimensions",
-        "> Priced at **1,000 coins per block** · Formula: X x Y x Z x 1,000",
+        "> Priced at **800 coins per block** · Formula: X  Y  Z  800",
         "",
         "━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
@@ -392,4 +391,3 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 client.login(TOKEN);
-EOF
