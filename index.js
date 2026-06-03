@@ -35,14 +35,14 @@ const MOD_ROLE_ID = "1510275193493389413";
 const BUILDER_ROLE_ID = "1510839345278353519";
 // ─────────────────────────────────────────────────────────────────────────────
 
-const BUILD_PING = `<@&${OWNER_ROLE_ID}> <@&${MOD_ROLE_ID}> <@&${BUILDER_ROLE_ID}>`;
-const SPAWNER_PING = `<@&${OWNER_ROLE_ID}> <@&${MOD_ROLE_ID}>`;
+const BUILD_PING = `<@&${OWNER_ROLE_ID}>`;
+const SPAWNER_PING = `<@&${OWNER_ROLE_ID}>`;
 
 const TICKET_TYPES = {
   ticket_staff: { name: "staff-app", title: "Apply For Staff", color: 0x5865f2, ping: OWNER_ROLE_ID, emoji: "👔" },
-  ticket_builder: { name: "builder-app", title: "Apply for Builder", color: 0x57f287, ping: BUILDER_ROLE_ID, emoji: "🔨" },
-  ticket_giveaway: { name: "giveaway-claim", title: "Claim a Giveaway win", color: 0xfee75c, ping: MOD_ROLE_ID, emoji: "🎁" },
-  ticket_general: { name: "general", title: "General Questions", color: 0xed4245, ping: MOD_ROLE_ID, emoji: "❓" }
+  ticket_builder: { name: "builder-app", title: "Apply for Builder", color: 0x57f287, ping: OWNER_ROLE_ID, emoji: "🔨" },
+  ticket_giveaway: { name: "giveaway-claim", title: "Claim a Giveaway win", color: 0xfee75c, ping: OWNER_ROLE_ID, emoji: "🎁" },
+  ticket_general: { name: "general", title: "General Questions", color: 0xed4245, ping: OWNER_ROLE_ID, emoji: "❓" }
 };
 
 client.once(Events.ClientReady, () => {
@@ -184,7 +184,7 @@ client.on(Events.MessageCreate, async (message) => {
         "",
         "━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
-        "**Ticketty | Ticketty.top**",
+        "**Claude's Helper.**",
       ].join("\n"))
       .setColor(0x2b2d31)
       .setFooter({ text: "Ticketty | Ticket System" })
@@ -255,7 +255,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const modal = new ModalBuilder().setCustomId("modal_digout").setTitle("Digout Order");
       modal.addComponents(
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ign").setLabel("Your IGN").setStyle(TextInputStyle.Short).setRequired(true)),
-        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("dimensions").setLabel("Dimensions (X x Y x Z)").setStyle(TextInputStyle.Short).setPlaceholder("e.g. 50 x 10 x 50").setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("dimensions").setLabel("Dimensions (X  Y  Z)").setStyle(TextInputStyle.Short).setPlaceholder("e.g. 50 x 10 x 50").setRequired(true)),
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("extra").setLabel("Any extra info? (optional)").setStyle(TextInputStyle.Paragraph).setRequired(false))
       );
       return await interaction.showModal(modal);
@@ -320,7 +320,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger);
       
       await ticketChannel.send({ 
-        content: `${interaction.user} ${type.ping ? `<@&${type.ping}>` : ""}`,
+        content: `${interaction.user} <@&${OWNER_ROLE_ID}>`,
         embeds: [ticketEmbed], 
         components: [new ActionRowBuilder().addComponents(closeBtn)] 
       });
@@ -436,7 +436,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setFooter({ text: "Claude's Bot • Spawner Shop" });
 
       const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger);
-      await ticketChannel.send({ content: `${interaction.user} ${SPAWNER_PING}`, embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeBtn)] });
+      await ticketChannel.send({ content: `${interaction.user} <@&${OWNER_ROLE_ID}>`, embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeBtn)] });
       return await interaction.reply({ content: `✅ Your ticket has been opened: ${ticketChannel}`, ephemeral: true });
     }
 
@@ -488,7 +488,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       .setFooter({ text: "Claude's Bot • Build Services" });
 
     const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger);
-    await ticketChannel.send({ content: `${interaction.user} ${BUILD_PING}`, embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeBtn)] });
+    await ticketChannel.send({ content: `${interaction.user} <@&${OWNER_ROLE_ID}>`, embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeBtn)] });
     await interaction.reply({ content: `✅ Your ticket has been opened: ${ticketChannel}`, ephemeral: true });
 
     if (LOG_CHANNEL_ID) {
