@@ -1,4 +1,3 @@
-process.env.DISCORD_TOKEN = "MTUxMTU4MjM3Mjg5Njk2ODg1NA.G46kfs.GmvTRA_F5X52okrXG7kZMk6iF8LhzqwcaN23UQ";
 const {
   Client,
   GatewayIntentBits,
