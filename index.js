@@ -32,7 +32,7 @@ const AUTO_ROLE_ID = "1510275196576207051";
 const LOG_CHANNEL_ID = "1510701776310108360";
 const OWNER_ROLE_ID = "1510275124069404924";
 const MOD_ROLE_ID = "1510275193493389413";
-const BUILDER_ROLE_ID = "1510839345278353519";
+// BUILDER_ROLE_ID removed
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BUILD_PING = `<@&${OWNER_ROLE_ID}>`;
@@ -91,7 +91,7 @@ client.on(Events.MessageCreate, async (message) => {
         "",
         "**Farm Order** — Order a prebuilt farm from our catalog",
         "**Digout** — Request a custom dig-out by dimensions",
-        "> Priced at **800 dollars per block** · Formula: X  Y  Z  800",
+        "> Priced at **800 dollars per block** · Formula: X x Y x Z x 800",
         "",
         "━━━━━━━━━━━━━━━━━━━━━━━━",
         "",
@@ -255,7 +255,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const modal = new ModalBuilder().setCustomId("modal_digout").setTitle("Digout Order");
       modal.addComponents(
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("ign").setLabel("Your IGN").setStyle(TextInputStyle.Short).setRequired(true)),
-        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("dimensions").setLabel("Dimensions (X  Y  Z)").setStyle(TextInputStyle.Short).setPlaceholder("e.g. 50 x 10 x 50").setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("dimensions").setLabel("Dimensions (X x Y x Z)").setStyle(TextInputStyle.Short).setPlaceholder("e.g. 50 x 10 x 50").setRequired(true)),
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("extra").setLabel("Any extra info? (optional)").setStyle(TextInputStyle.Paragraph).setRequired(false))
       );
       return await interaction.showModal(modal);
@@ -291,11 +291,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
         { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles] },
         { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory] },
+        { id: OWNER_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+        { id: MOD_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
       ];
-      
-      if (OWNER_ROLE_ID) overwrites.push({ id: OWNER_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
-      if (MOD_ROLE_ID) overwrites.push({ id: MOD_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
-      if (BUILDER_ROLE_ID) overwrites.push({ id: BUILDER_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
       
       const ticketChannel = await guild.channels.create({
         name: `${type.name}-${interaction.user.username.toLowerCase()}`,
@@ -459,7 +457,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] },
       { id: OWNER_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
       { id: MOD_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-      { id: BUILDER_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
     ];
 
     const channelOptions = {
