@@ -146,6 +146,47 @@ client.on(Events.MessageCreate, async (message) => {
     await message.delete().catch(() => {});
   }
 
+  // !spawnerpanel
+  if (message.content === "!spawnerpanel" && (isAdmin || isStaff)) {
+    const embed = new EmbedBuilder()
+      .setTitle("Skeleton Spawner Shop")
+      .setDescription(
+        [
+          "**Selling:** *(We Sell To You)*",
+          "🦴 Skeleton Spawners — **4.7M each**",
+          "",
+          "**Buying:** *(You Sell To Us)*",
+          "🦴 Skeleton Spawners — **4.4M each**",
+          "",
+          "━━━━━━━━━━━━━━━━━━━━━━━━",
+          "",
+          "**Rules**",
+          "• 32 spawners minimum to Sell or Buy",
+          "• We do **NOT** go first",
+          "• We do **NOT** negotiate on prices",
+          "⚠️ Failure to complete trades may result in a **ban**",
+          "",
+          "Open a ticket below to sell or buy spawners.",
+        ].join("\n")
+      )
+      .setColor(0x2b2d31)
+      .setFooter({ text: "Claude's Bot • Spawner Shop" })
+      .setTimestamp();
+
+    const sellBtn = new ButtonBuilder()
+      .setCustomId("sell_spawners")
+      .setLabel("Sell Spawners")
+      .setStyle(ButtonStyle.Success);
+
+    const buyBtn = new ButtonBuilder()
+      .setCustomId("buy_spawners")
+      .setLabel("Buy Spawners")
+      .setStyle(ButtonStyle.Primary);
+
+    await message.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(sellBtn, buyBtn)] });
+    await message.delete().catch(() => {});
+  }
+
   // !addstaff @user
   if (message.content.startsWith("!addstaff") && isAdmin) {
     const target = message.mentions.members.first();
@@ -169,6 +210,7 @@ client.on(Events.MessageCreate, async (message) => {
       .setDescription(
         [
           "**!panel** — Post the build services panel",
+          "**!spawnerpanel** — Post the spawner shop panel",
           "**!addstaff @user** — Give staff role to a user *(admin only)*",
           "**!removestaff @user** — Remove staff role from a user *(admin only)*",
           "**!help** — Show this message",
@@ -196,6 +238,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
         ),
         new ActionRowBuilder().addComponents(
           new TextInputBuilder().setCustomId("extra").setLabel("Any extra info? (optional)").setStyle(TextInputStyle.Paragraph).setRequired(false)
+        )
+      );
+      return await interaction.showModal(modal);
+    }
+
+    if (interaction.customId === "sell_spawners" || interaction.customId === "buy_spawners") {
+      const isBuy = interaction.customId === "buy_spawners";
+      const modal = new ModalBuilder()
+        .setCustomId(isBuy ? "modal_buy_spawners" : "modal_sell_spawners")
+        .setTitle(isBuy ? "Buy Spawners" : "Sell Spawners");
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId("ign").setLabel("Your IGN").setStyle(TextInputStyle.Short).setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId("amount").setLabel("How many skeleton spawners?").setStyle(TextInputStyle.Short).setPlaceholder("e.g. 100").setRequired(true)
         )
       );
       return await interaction.showModal(modal);
@@ -264,6 +322,63 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
   // ── Modal submit ──────────────────────────────────────────────────────────
   if (interaction.isModalSubmit()) {
+    const isBuySpawner = interaction.customId === "modal_buy_spawners";
+    const isSellSpawner = interaction.customId === "modal_sell_spawners";
+
+    if (isBuySpawner || isSellSpawner) {
+      const ign = interaction.fields.getTextInputValue("ign");
+      const amount = interaction.fields.getTextInputValue("amount");
+      const type = isBuySpawner ? "buy" : "sell";
+      const guild = interaction.guild;
+
+      const existing = guild.channels.cache.find(
+        (c) => c.name === `spawner-${type}-${interaction.user.username.toLowerCase()}`
+      );
+      if (existing) {
+        return interaction.reply({ content: `❌ You already have an open ticket: ${existing}`, ephemeral: true });
+      }
+
+      const overwrites = [
+        { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] },
+      ];
+      if (STAFF_ROLE_ID) {
+        overwrites.push({ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
+      }
+
+      const ticketChannel = await guild.channels.create({
+        name: `spawner-${type}-${interaction.user.username.toLowerCase()}`,
+        type: ChannelType.GuildText,
+        permissionOverwrites: overwrites,
+        ...(TICKET_CATEGORY_ID ? { parent: TICKET_CATEGORY_ID } : {}),
+      });
+
+      const price = isBuySpawner ? 4.7 : 4.4;
+      const total = (parseFloat(amount) * price).toLocaleString();
+
+      const ticketEmbed = new EmbedBuilder()
+        .setTitle(isBuySpawner ? "Buy Spawners Order" : "Sell Spawners Order")
+        .setDescription([
+          `**User:** ${interaction.user}`,
+          `**IGN:** \`${ign}\``,
+          `**Amount:** \`${amount} spawners\``,
+          `**Price:** ${price}M each`,
+          `**Total:** ~${total}M`,
+          "",
+          "A staff member will be with you shortly.",
+        ].join("\n"))
+        .setColor(isBuySpawner ? 0x5865f2 : 0x57f287)
+        .setTimestamp()
+        .setFooter({ text: "Claude's Bot • Spawner Shop" });
+
+      const closeBtn = new ButtonBuilder().setCustomId("close_ticket").setLabel("Close Ticket").setStyle(ButtonStyle.Danger);
+      const ping = STAFF_ROLE_ID ? `<@&${STAFF_ROLE_ID}>` : "";
+
+      await ticketChannel.send({ content: `${interaction.user} ${ping}`, embeds: [ticketEmbed], components: [new ActionRowBuilder().addComponents(closeBtn)] });
+      return await interaction.reply({ content: `✅ Your ticket has been opened: ${ticketChannel}`, ephemeral: true });
+    }
+
     const isFarm = interaction.customId === "modal_farm";
     const isDigout = interaction.customId === "modal_digout";
     if (!isFarm && !isDigout) return;
